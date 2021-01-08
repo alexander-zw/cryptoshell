@@ -1,6 +1,5 @@
 """
-A user-friendly tool for cryptography-related uses. Only ASCII messages are
-supported.
+A user-friendly tool for cryptography-related uses.
 
 Signature: Using PKCS#1 v1.5 signature scheme (RSASP1), generates key pairs
 and allows users to sign ASCII messages with given key and verify messages
