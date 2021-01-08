@@ -10,9 +10,6 @@ from Crypto.Signature.pkcs1_15 import PKCS115_SigScheme
 from Crypto.Hash import SHA256
 import binascii
 
-example_pub_key_file_name = "examples/public_key.pem"
-example_pri_key_file_name = "examples/private_key.pem"
-
 def rsa_key_gen(file_names=None, print_binary=False, code_friendly=False):
     """
     Returns an RSA key pair for signing in addition to printout.
@@ -115,29 +112,3 @@ def prompt_for_message():
 def prompt_for_signature():
     print("Please enter the signature in hex:")
     return binascii.unhexlify(input())
-
-if __name__ == "__main__":
-    """
-    The following demo uses existing keys and signature to verify a message.
-    If GEN_KEY is true, generates a key pair.
-    Otherwise uses existing key pair in examples/ to verify.
-    """
-    GEN_NEW_KEY = False
-
-    message = b"I'm glad I'm me, I'm glad I'm me, there's no one else I want to be."
-
-    if GEN_NEW_KEY:
-        key_pair = rsa_key_gen((example_pub_key_file_name, example_pri_key_file_name))
-        public_key = key_pair.publickey()
-        signature = rsa_sign(message, key_pair)
-    else:
-        # If strings, reads from file.
-        public_key, key_pair = example_pub_key_file_name, example_pri_key_file_name
-        signature = binascii.unhexlify(
-            b"9450d44ba8b59c949c848a755dcb1683c1596d56e4efb2b7159bdc0853d4cd3a"
-            b"14361bebb6204c1b3ecfd8981ab242055b4d846f1cd1e94d6a4277a0d455603c"
-            b"1fd70a2293acee0ae47aa621a1977353c70ae0a43393a8a523b2c2ad08dcdc79"
-            b"3e46a2a29130f2c556ffaae9620f828556d53c2a3bf27bd6a3d2af2e38b64710"
-        )
-    assert rsa_verify(message, signature, public_key)
-    assert not rsa_verify(b"I hate you.", signature, public_key)

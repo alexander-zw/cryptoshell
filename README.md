@@ -2,6 +2,8 @@
 
 A user-friendly tool for cryptography-related uses. Run `main.py` to start interactive shell.
 
+## Details
+
 Currently contains commands to sign and verify RSA signatures. Uses the PKCS#1 v1.5 signature scheme (RSASP1). Only ASCII messages are supported.
 
 The shell supports the following commands:
@@ -40,3 +42,7 @@ rsaverify: rsaverify [-k keyfile] [-m messagefile] [-b]
     to provide the public key in binary PEM format; otherwise the prompt asks
     for exact values of n and e in hex.
 ```
+
+## Examples
+
+`example.py` contains some example code that signs and verifies a message. `examples/` contains some example files for RSA keys in the PEM format.
