@@ -13,7 +13,7 @@ import binascii
 example_pub_key_file_name = "examples/public_key.pem"
 example_pri_key_file_name = "examples/private_key.pem"
 
-def rsa_key_gen(file_names=None, code_friendly=False):
+def rsa_key_gen(file_names=None, print_binary=False, code_friendly=False):
     """
     Returns an RSA key pair for signing in addition to printout.
     Saves them to the default file.
@@ -21,10 +21,10 @@ def rsa_key_gen(file_names=None, code_friendly=False):
     print("Generating a pair of RSA keys...")
 
     key_pair = RSA.generate(bits=1024)
-    print(f"Your public key is\n(n={hex(key_pair.n)}, e={hex(key_pair.e)})\n"
-           "Publicly establish this key as belonging to you.\n")
-    print(f"Your private key is\n(n={hex(key_pair.n)}, d={hex(key_pair.d)})\n"
-           "Do not reveal this key (the d value) to anyone.\n")
+    print(f"Your public key is\n(n={hex(key_pair.n)}, e={hex(key_pair.e)})")
+    print("Publicly establish this key as belonging to you.\n")
+    print(f"Your private key is\n(n={hex(key_pair.n)}, d={hex(key_pair.d)})")
+    print("Do not reveal this key (the d value) to anyone.\n")
 
     if file_names:
         pub_file_name, pri_file_name = file_names
@@ -36,6 +36,13 @@ def rsa_key_gen(file_names=None, code_friendly=False):
                       f"and you private key to {pri_file_name}. Do not share the private "
                       "key file with anyone.\n")
 
+    if print_binary:
+        print("Binary (PEM) format of public key:")
+        print(key_pair.publickey().export_key('PEM').decode('ASCII'))
+        print("\nBinary (PEM) format of public key:")
+        print(key_pair.export_key('PEM').decode('ASCII'))
+        print()
+
     if code_friendly:
         print("Python-friendly ouput:\n")
         print(f"n = {hex(key_pair.n)}")
@@ -45,20 +52,27 @@ def rsa_key_gen(file_names=None, code_friendly=False):
         print(f"private_key = Crypto.PublicKey.RSA.construct((n, e, d))\n")
     return key_pair
 
-def rsa_sign(message, key_pair):
+def rsa_sign(message, private_key, code_friendly=False):
     """
     Returns the RSA signature in addition to printout.
     If key_pair is a string, imports private key from this file.
     """
-    if isinstance(key_pair, str):
-        with open(key_pair, 'r') as f:
-            key_pair = RSA.import_key(f.read())
+    if isinstance(private_key, str):
+        with open(private_key, 'r') as f:
+            private_key = RSA.import_key(f.read())
     # Sign the message using the PKCS#1 v1.5 signature scheme (RSASP1).
     msg_hash = SHA256.new(message)
-    signer = PKCS115_SigScheme(key_pair)
+    signer = PKCS115_SigScheme(private_key)
     signature = signer.sign(msg_hash)
-    print(f"Your signature is\n{binascii.hexlify(signature).decode('ASCII')}\n"
-           "Share this signature along with your message to prove its authenticity.\n")
+    decoded_signature = binascii.hexlify(signature).decode('ASCII')
+    print(f"Your signature is\n{decoded_signature}")
+    print("Share this signature along with your message to prove its authenticity.\n")
+
+    if code_friendly:
+        print("Python-friendly ouput:\n")
+        for i in range(len(decoded_signature) // 64):
+            print(f"b\"{decoded_signature[i * 64:(i + 1) * 64]}\"")
+        print()
     return signature
 
 def rsa_verify(message, signature, public_key):
@@ -85,6 +99,23 @@ def read_message_from_file(filename):
     with open(filename, 'r') as f:
         return bytes(f.read(), "ASCII")
     print(f"Failed to read file {filename}.")
+
+def prompt_for_key(public=True, binary=False):
+    if binary:
+        key_description = "PUBLIC" if public else "RSA PRIVATE"
+        print("Please provide the private key in binary (PEM format), including the '-----BEGIN "
+              f"{key_description} KEY-----' and '-----END {key_description} KEY-----' tags:")
+        key = RSA.import_key(input())
+    else:
+        print("Please provide the private key in hex (without the '0x').")
+        n = int(input("n="), 16)
+        e = int(input("e="), 16)
+        if public:
+            key = RSA.construct((n, e))
+        else:
+            d = int(input("d="), 16)
+            key = RSA.construct((n, e, d))
+    return key
 
 if __name__ == "__main__":
     """
