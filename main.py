@@ -9,6 +9,34 @@ import shlex
 import signal
 import sys
 
+def handle_error(f):
+    def wrapper(*args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except FileNotFoundError as e:
+            print(f"Oops, failed to read file {e.filename}!")
+        except UnicodeEncodeError as e:
+            print(f"Oops, your message contains a non-ASCII character {e.object[e.start]}!")
+        except Exception as e:
+            if str(e)[:41] == "invalid literal for int() with base 16: '":
+                invalid_literal = str(e)[40:]
+                print(f"Oops, {invalid_literal} is not a valid hexadecimal number!")
+            elif str(e) == "RSA key format is not supported":
+                print(f"Oops, your RSA key doesn't have the '-----BEGIN RSA PRIVATE KEY-----' "
+                      "and '-----END RSA PRIVATE KEY-----' tags!")
+            elif str(e) == "Not a valid PEM pre boundary" or \
+                 str(e) == "Not a valid PEM post boundary" or \
+                 str(e) == "Unable to compute factors p and q from exponent d." or \
+                 str(e) == "Incorrect padding" or \
+                 str(e)[:29] == "Invalid base64-encoded string":
+                print(f"Oops, that is not a valid RSA key!")
+            elif str(e) == "Odd-length string" or \
+                 str(e) == "Non-hexadecimal digit found":
+                print(f"Oops, that is not even an RSA signature!")
+            else:
+                print(f"Oops, something went wrong: {e}!")
+    return wrapper
+
 class CryptoShell(Cmd):
     def __init__(self):
         super().__init__()
@@ -65,6 +93,7 @@ class CryptoShell(Cmd):
         print("    n, e, and d are given. The -c option causes the keys to be printed in")
         print("    Python-friendly format.")
 
+    @handle_error
     def do_rsasign(self, inp):
         KEY_FILE_OPTION = 'k'
         MESSAGE_FILE_OPTION = 'm'
@@ -73,21 +102,16 @@ class CryptoShell(Cmd):
 
         tokenizer = Tokenizer(inp)
         binary_key = tokenizer.has_option(BINARY_KEY_OPTION)
-
-        try:
-            if tokenizer.has_option(KEY_FILE_OPTION):
-                key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
-                private_key = cryptography.read_key_from_file(key_file)
-            else:
-                private_key = cryptography.prompt_for_key(public=False, binary=binary_key)
-            if tokenizer.has_option(MESSAGE_FILE_OPTION):
-                message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
-                message = cryptography.read_message_from_file(message_file)
-            else:
-                message = cryptography.prompt_for_message()
-        except FileNotFoundError as e:
-            print(f"Failed to read file {e.filename}.")
-            return
+        if tokenizer.has_option(KEY_FILE_OPTION):
+            key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
+            private_key = cryptography.read_key_from_file(key_file)
+        else:
+            private_key = cryptography.prompt_for_key(public=False, binary=binary_key)
+        if tokenizer.has_option(MESSAGE_FILE_OPTION):
+            message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
+            message = cryptography.read_message_from_file(message_file)
+        else:
+            message = cryptography.prompt_for_message()
         code_friendly = tokenizer.has_option(CODE_FRIENDLY_OPTION)
 
         cryptography.rsa_sign(message, private_key, code_friendly=code_friendly)
@@ -102,6 +126,7 @@ class CryptoShell(Cmd):
         print("    hex. The -c option causes the signature to be printed in Python-friendly")
         print("    format.")
 
+    @handle_error
     def do_rsaverify(self, inp):
         KEY_FILE_OPTION = 'k'
         MESSAGE_FILE_OPTION = 'm'
@@ -109,20 +134,16 @@ class CryptoShell(Cmd):
 
         tokenizer = Tokenizer(inp)
         binary_key = tokenizer.has_option(BINARY_KEY_OPTION)
-        try:
-            if tokenizer.has_option(KEY_FILE_OPTION):
-                key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
-                public_key = cryptography.read_key_from_file(key_file)
-            else:
-                public_key = cryptography.prompt_for_key(public=False, binary=binary_key)
-            if tokenizer.has_option(MESSAGE_FILE_OPTION):
-                message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
-                message = cryptography.read_message_from_file(message_file)
-            else:
-                message = cryptography.prompt_for_message()
-        except FileNotFoundError as e:
-            print(f"Failed to read file {e.filename}.")
-            return
+        if tokenizer.has_option(KEY_FILE_OPTION):
+            key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
+            public_key = cryptography.read_key_from_file(key_file)
+        else:
+            public_key = cryptography.prompt_for_key(public=False, binary=binary_key)
+        if tokenizer.has_option(MESSAGE_FILE_OPTION):
+            message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
+            message = cryptography.read_message_from_file(message_file)
+        else:
+            message = cryptography.prompt_for_message()
         signature = cryptography.prompt_for_signature()
 
         cryptography.rsa_verify(message, signature, public_key)
