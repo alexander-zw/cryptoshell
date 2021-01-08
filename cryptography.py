@@ -1,5 +1,6 @@
 """
-A user-friendly tool for cryptography-related uses.
+A user-friendly tool for cryptography-related uses. Only ASCII messages are
+supported.
 
 Signature: Using PKCS#1 v1.5 signature scheme (RSASP1), generates key pairs
 and allows users to sign ASCII messages with given key and verify messages
@@ -53,13 +54,7 @@ def rsa_key_gen(file_names=None, print_binary=False, code_friendly=False):
     return key_pair
 
 def rsa_sign(message, private_key, code_friendly=False):
-    """
-    Returns the RSA signature in addition to printout.
-    If key_pair is a string, imports private key from this file.
-    """
-    if isinstance(private_key, str):
-        with open(private_key, 'r') as f:
-            private_key = RSA.import_key(f.read())
+    """ Returns the RSA signature in addition to printout. """
     # Sign the message using the PKCS#1 v1.5 signature scheme (RSASP1).
     msg_hash = SHA256.new(message)
     signer = PKCS115_SigScheme(private_key)
@@ -76,13 +71,7 @@ def rsa_sign(message, private_key, code_friendly=False):
     return signature
 
 def rsa_verify(message, signature, public_key):
-    """
-    Returns if the RSA signature is valid in addition to printout.
-    If key_pair is a string, imports public key from this file.
-    """
-    if isinstance(key_pair, str):
-        with open(key_pair, 'r') as f:
-            public_key = RSA.import_key(f.read())
+    """ Returns if the RSA signature is valid in addition to printout. """
     # Verify PKCS#1 v1.5 signature (RSAVP1).
     msg_hash = SHA256.new(message)
     verifier = PKCS115_SigScheme(public_key)
@@ -94,11 +83,9 @@ def rsa_verify(message, signature, public_key):
         print("Signature is INVALID ❌\n")
         return False
 
-def read_message_from_file(filename):
-    """ Reads the file and returns the messaged encoded from ASCII to bytes. """
+def read_key_from_file(filename):
     with open(filename, 'r') as f:
-        return bytes(f.read(), "ASCII")
-    print(f"Failed to read file {filename}.")
+        return RSA.import_key(f.read())
 
 def prompt_for_key(public=True, binary=False):
     if binary:
@@ -116,6 +103,19 @@ def prompt_for_key(public=True, binary=False):
             d = int(input("d="), 16)
             key = RSA.construct((n, e, d))
     return key
+
+def read_message_from_file(filename):
+    """ Reads the file and returns the messaged encoded from ASCII to bytes. """
+    with open(filename, 'r') as f:
+        return bytes(f.read(), "ASCII")
+
+def prompt_for_message():
+    print("Please enter the message (the final newline is NOT part of the message):")
+    return bytes(input(), "ASCII")
+
+def prompt_for_signature():
+    print("Please enter the signature in hex:")
+    return binascii.unhexlify(input())
 
 if __name__ == "__main__":
     """

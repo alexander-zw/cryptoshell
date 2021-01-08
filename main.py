@@ -6,13 +6,21 @@ This file implements the shell commands.
 import cryptography
 from cmd import Cmd
 import shlex
+import signal
+import sys
 
 class CryptoShell(Cmd):
-    prompt = "<cs> "
-    intro = "========================================\n" \
-            "CryptoShell\n" \
-            "========================================\n" \
-            "Welcome! How may I help you today?"
+    def __init__(self):
+        super().__init__()
+        self.prompt = "⏭  "
+        self.intro = "========================================\n" \
+                     "CryptoShell\n" \
+                     "========================================\n" \
+                     "Welcome! How may I help you today?"
+        self.do_q = self.do_exit
+        self.help_q = self.help_exit
+        self.do_EOF = self.do_exit
+        self.help_EOF = self.help_exit
 
     def help_help(self):
         print("help: help [cmd]")
@@ -26,11 +34,6 @@ class CryptoShell(Cmd):
     def help_exit(self):
         print("exit: exit")
         print("    Exit the application. Shorthand: q or Ctrl-D.")
-
-    do_q = do_exit
-    help_q = help_exit
-    do_EOF = do_exit
-    help_EOF = help_exit
 
     def do_rsagen(self, inp):
         TWO_NAMES_OPTION = 'f'
@@ -70,16 +73,21 @@ class CryptoShell(Cmd):
 
         tokenizer = Tokenizer(inp)
         binary_key = tokenizer.has_option(BINARY_KEY_OPTION)
-        if tokenizer.has_option(KEY_FILE_OPTION):
-            private_key = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
-        else:
-            private_key = cryptography.prompt_for_key(public=False, binary=binary_key)
-        if tokenizer.has_option(MESSAGE_FILE_OPTION):
-            message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
-            message = cryptography.read_message_from_file(message_file)
-        else:
-            print("Please enter the message (the final newline is NOT part of the message):")
-            message = bytes(input(), "ASCII")
+
+        try:
+            if tokenizer.has_option(KEY_FILE_OPTION):
+                key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
+                private_key = cryptography.read_key_from_file(key_file)
+            else:
+                private_key = cryptography.prompt_for_key(public=False, binary=binary_key)
+            if tokenizer.has_option(MESSAGE_FILE_OPTION):
+                message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
+                message = cryptography.read_message_from_file(message_file)
+            else:
+                message = cryptography.prompt_for_message()
+        except FileNotFoundError as e:
+            print(f"Failed to read file {e.filename}.")
+            return
         code_friendly = tokenizer.has_option(CODE_FRIENDLY_OPTION)
 
         cryptography.rsa_sign(message, private_key, code_friendly=code_friendly)
@@ -93,6 +101,40 @@ class CryptoShell(Cmd):
         print("    format; otherwise the prompt asks for exact values of n, e, and d in")
         print("    hex. The -c option causes the signature to be printed in Python-friendly")
         print("    format.")
+
+    def do_rsaverify(self, inp):
+        KEY_FILE_OPTION = 'k'
+        MESSAGE_FILE_OPTION = 'm'
+        BINARY_KEY_OPTION = 'b'
+
+        tokenizer = Tokenizer(inp)
+        binary_key = tokenizer.has_option(BINARY_KEY_OPTION)
+        try:
+            if tokenizer.has_option(KEY_FILE_OPTION):
+                key_file = tokenizer.get_option_args(KEY_FILE_OPTION, 1)[0]
+                public_key = cryptography.read_key_from_file(key_file)
+            else:
+                public_key = cryptography.prompt_for_key(public=False, binary=binary_key)
+            if tokenizer.has_option(MESSAGE_FILE_OPTION):
+                message_file = tokenizer.get_option_args(MESSAGE_FILE_OPTION, 1)[0]
+                message = cryptography.read_message_from_file(message_file)
+            else:
+                message = cryptography.prompt_for_message()
+        except FileNotFoundError as e:
+            print(f"Failed to read file {e.filename}.")
+            return
+        signature = cryptography.prompt_for_signature()
+
+        cryptography.rsa_verify(message, signature, public_key)
+
+    def help_rsaverify(self):
+        print("rsaverify: rsaverify [-k keyfile] [-m messagefile] [-b]")
+        print("    Verifies an RSA signature on a message. Always prompts for signature in")
+        print("    hex. If KEYFILE is given, uses that file as the public key; otherwise")
+        print("    prompts for public key. If MESSAGEFILE is given, verifies the contents")
+        print("    of that file; otherwise prompts for message. The -b option allows the user")
+        print("    to provide the public key in binary PEM format; otherwise the prompt asks")
+        print("    for exact values of n and e in hex.")
 
 class Tokenizer:
     def __init__(self, input_str):
@@ -117,4 +159,6 @@ class Tokenizer:
         return [token for token in self.tokens if token[0] != '-']
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda sig, frame: None)
+
     CryptoShell().cmdloop()
